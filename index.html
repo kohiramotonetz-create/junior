@@ -2,58 +2,84 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>英単語テストPro (VBAロジック完全移植版)</title>
+    <title>英単語テストPro (Excel完全再現版)</title>
     <style>
-        /* スタイル（以前の2ペインレイアウトを継承） */
         body { font-family: system-ui, sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
-        .settings-panel { width: 350px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; }
-        .preview-panel { flex: 1; padding: 40px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
-        .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #000; padding: 10px; text-align: left; }
-        .col-no { width: 30px; text-align: center; }
-        select, button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
-        button { cursor: pointer; font-weight: bold; background: #007bff; color: white; border: none; }
-        button:hover { background: #0056b3; }
-        .config-group { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
+        .settings-panel { width: 380px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .preview-panel { flex: 1; padding: 20px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
+        .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-sizing: border-box; position: relative; }
+        
+        h2 { border-left: 5px solid #007bff; padding-left: 10px; font-size: 1.2em; margin-bottom: 20px; }
+        .config-group { margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 8px; }
+        label { display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px; }
+        select, button { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+        
+        .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; font-size: 18px; }
+        .btn-sub { background: #28a745; color: white; border: none; cursor: pointer; }
+        .btn-print { background: #6c757d; color: white; border: none; cursor: pointer; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        .col-no { width: 40px; text-align: center; }
+        .header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 20px; }
+        
+        @media print {
+            .settings-panel { display: none; }
+            .preview-panel { background: none; padding: 0; }
+            .test-paper { box-shadow: none; margin: 0; }
+        }
     </style>
 </head>
 <body>
 
 <div class="settings-panel">
-    <h2>🛠 テスト作成</h2>
+    <h2>📝 テスト作成設定</h2>
     
     <div class="config-group">
-        <label>開始範囲 (学年 + 単元)</label>
-        <select id="start-grade"></select>
-        <select id="start-unit"></select>
+        <label>学校名 (〇〇中)</label>
+        <select id="school"></select>
+        <label>学年</label>
+        <select id="grade"></select>
+        <label>出題モード</label>
+        <select id="mode">
+            <option value="en-ja">英語 → 日本語訳</option>
+            <option value="ja-en">日本語 → 英語</option>
+        </select>
     </div>
 
     <div class="config-group">
-        <label>終了範囲 (学年 + 単元)</label>
-        <select id="end-grade"></select>
-        <select id="end-unit"></select>
+        <label>▼ 開始範囲</label>
+        <select id="start-unit"></select>
+        <select id="start-part"></select>
     </div>
 
-    <button onclick="generateTest()">🔄 問題を抽出して生成</button>
-    <button style="background:#28a745;" onclick="toggleAnswer()">👁 解答表示 切替</button>
-    <button style="background:#6c757d;" onclick="window.print()">🖨 印刷 / PDF保存</button>
+    <div style="text-align: center; margin: -5px 0 10px;">⬇</div>
+
+    <div class="config-group">
+        <label>▼ 終了範囲</label>
+        <select id="end-unit"></select>
+        <select id="end-part"></select>
+    </div>
+
+    <button class="btn-main" onclick="generateTest()">🔄 問題を生成</button>
+    <button class="btn-sub" onclick="toggleAnswer()">👁 解答表示：OFF</button>
+    <button class="btn-print" onclick="window.print()">🖨 印刷 / PDF保存</button>
 </div>
 
 <div class="preview-panel">
     <div class="test-paper" id="paper">
-        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-            <h1 style="margin:0;">英単語テスト</h1>
-            <span>名前: __________________________</span>
+        <div class="header-area">
+            <div style="font-size: 14px;">名前 ____________________</div>
+            <h1 style="margin: 0; font-size: 24px;">英単語テスト</h1>
+            <div id="info-tag" style="font-size: 12px;"></div>
         </div>
-        <p id="range-label" style="font-size:12px; color:#666;"></p>
+        <p id="range-display" style="font-size: 11px; margin: 5px 0; color: #444;"></p>
         <table>
             <thead>
                 <tr>
-                    <th class="col-no">No</th>
-                    <th>問題</th>
-                    <th>解答欄</th>
+                    <th class="col-no">No.</th>
+                    <th id="th-q">英単語</th>
+                    <th id="th-a">日本語訳</th>
                 </tr>
             </thead>
             <tbody id="test-body"></tbody>
@@ -67,90 +93,106 @@
 
     async function init() {
         try {
-            // CSVを読み込む
             const res = await fetch('wordlist.csv');
             const text = await res.text();
             const rows = text.split('\n').slice(1);
             
             allData = rows.map(row => {
                 const c = row.split(',');
-                return { key: c[0], grade: c[1], unit: c[2], en: c[3], ja: c[4] };
+                return { key: c[0], school: c[1], grade: c[2], unit: c[3], part: c[4], en: c[5], ja: c[6] };
             }).filter(d => d.en);
 
-            // 最初に「学年」のプルダウンだけ作成
-            const grades = [...new Set(allData.map(d => d.grade))];
-            ['start-grade', 'end-grade'].forEach(id => {
-                const el = document.getElementById(id);
-                el.innerHTML = '';
-                grades.forEach(g => el.add(new Option(g, g)));
-                // 学年が変わったら単元リストを更新するイベントを追加
-                el.onchange = updateUnitSelects;
-            });
-
-            updateUnitSelects();
+            setupMasterSelects();
         } catch (e) {
-            alert("wordlist.csvが見つかりません。");
+            alert("wordlist.csvを読み込めませんでした。");
         }
     }
 
-    // 学年に合わせて単元プルダウンを更新（VBAの連動プルダウン再現）
-    function updateUnitSelects() {
-        ['start', 'end'].forEach(prefix => {
-            const grade = document.getElementById(`${prefix}-grade`).value;
-            const unitSel = document.getElementById(`${prefix}-unit`);
-            
-            // その学年に存在する単元だけを抽出
-            const units = [...new Set(allData.filter(d => d.grade === grade).map(d => d.unit))];
-            
-            unitSel.innerHTML = '';
-            units.forEach(u => unitSel.add(new Option(u, u)));
+    function setupMasterSelects() {
+        const schools = [...new Set(allData.map(d => d.school))];
+        const schoolSel = document.getElementById('school');
+        schools.forEach(s => schoolSel.add(new Option(s, s)));
+        schoolSel.onchange = updateGrades;
+        updateGrades();
+    }
+
+    function updateGrades() {
+        const school = document.getElementById('school').value;
+        const grades = [...new Set(allData.filter(d => d.school === school).map(d => d.grade))];
+        const gradeSel = document.getElementById('grade');
+        gradeSel.innerHTML = '';
+        grades.forEach(g => gradeSel.add(new Option(g, g)));
+        gradeSel.onchange = updateUnitParts;
+        updateUnitParts();
+    }
+
+    function updateUnitParts() {
+        const school = document.getElementById('school').value;
+        const grade = document.getElementById('grade').value;
+        const filtered = allData.filter(d => d.school === school && d.grade === grade);
+        
+        const units = [...new Set(filtered.map(d => d.unit))];
+        const parts = [...new Set(filtered.map(d => d.part))];
+
+        ['start', 'end'].forEach(p => {
+            const uSel = document.getElementById(`${p}-unit`);
+            const pSel = document.getElementById(`${p}-part`);
+            uSel.innerHTML = ''; pSel.innerHTML = '';
+            units.forEach(u => uSel.add(new Option(u, u)));
+            parts.forEach(pt => pSel.add(new Option(pt, pt)));
         });
     }
 
     function generateTest() {
-        const sG = document.getElementById('start-grade').value;
+        const school = document.getElementById('school').value;
+        const grade = document.getElementById('grade').value;
         const sU = document.getElementById('start-unit').value;
-        const eG = document.getElementById('end-grade').value;
+        const sP = document.getElementById('start-part').value;
         const eU = document.getElementById('end-unit').value;
+        const eP = document.getElementById('end-part').value;
+        const mode = document.getElementById('mode').value;
 
-        const sKey = sG + sU;
-        const eKey = eG + eU;
+        // Excelの連結キーロジック (A列と比較)
+        const sKey = sU + sP;
+        const eKey = eU + eP;
 
         let startIndex = allData.findIndex(d => d.key === sKey);
         let endIndex = allData.findLastIndex(d => d.key === eKey);
 
         if (startIndex === -1 || endIndex === -1) {
-            alert("範囲が見つかりません。");
+            alert("指定範囲のデータが見つかりません。");
             return;
         }
 
-        let filtered = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
-        let selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 20);
+        let range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1)
+                           .filter(d => d.school === school && d.grade === grade);
+        
+        let selected = range.sort(() => 0.5 - Math.random()).slice(0, 20);
 
-        render(selected, sKey, eKey);
+        render(selected, mode, school, grade, sKey, eKey);
     }
 
-    function render(data, s, e) {
+    function render(data, mode, school, grade, s, e) {
         const tbody = document.getElementById('test-body');
         tbody.innerHTML = '';
-        document.getElementById('range-label').textContent = `抽出範囲: ${s} ～ ${e} (計${data.length}問中からランダム表示)`;
+        document.getElementById('th-q').textContent = mode === 'en-ja' ? '英単語' : '日本語訳';
+        document.getElementById('th-a').textContent = mode === 'en-ja' ? '日本語訳' : '英単語';
+        document.getElementById('info-tag').textContent = `${school}_${grade}`;
+        document.getElementById('range-display').textContent = `範囲: ${s} ～ ${e}`;
 
         data.forEach((d, i) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="col-no">${i+1}</td>
-                <td>${d.ja}</td>
-                <td class="ans" data-ans="${d.en}">${isShowAnswer ? d.en : ''}</td>
-            `;
+            const q = mode === 'en-ja' ? d.en : d.ja;
+            const a = mode === 'en-ja' ? d.ja : d.en;
+            tr.innerHTML = `<td class="col-no">${i+1}</td><td>${q}</td><td class="ans" data-ans="${a}">${isShowAnswer ? a : ''}</td>`;
             tbody.appendChild(tr);
         });
     }
 
     function toggleAnswer() {
         isShowAnswer = !isShowAnswer;
-        document.querySelectorAll('.ans').forEach(td => {
-            td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '';
-        });
+        document.querySelector('.btn-sub').textContent = `👁 解答表示：${isShowAnswer ? 'ON' : 'OFF'}`;
+        document.querySelectorAll('.ans').forEach(td => td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '');
     }
 
     window.onload = init;
