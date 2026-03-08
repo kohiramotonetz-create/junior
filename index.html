@@ -1,152 +1,150 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>英単語テストPro（2ペイン版）</title>
-  <style>
-    
-    /* 全体レイアウト */
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f0f2f5; height: 100vh; overflow: hidden; }
-    .main-container { display: flex; height: 100vh; }
-
-    /* 左側：設定パネル */
-    .settings-panel {
-      width: 350px;
-      background: #fff;
-      border-right: 1px solid #ccc;
-      padding: 20px;
-      overflow-y: auto;
-      box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-      z-index: 10;
-    }
-
-    /* 右側：プレビュー表示 */
-    .preview-panel {
-      flex: 1;
-      padding: 40px;
-      overflow-y: auto;
-      display: flex;
-      justify-content: center;
-      background: #525659; /* PDFビューア風の背景色 */
-    }
-
-    /* テスト用紙（原本シートをイメージ） */
-    .test-paper {
-      width: 210mm; /* A4サイズ意識 */
-      min-height: 297mm;
-      background: #fff;
-      padding: 40px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-      box-sizing: border-box;
-    }
-
-    h1 { font-size: 24px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-top: 0; }
-    .config-group { margin-bottom: 15px; }
-    label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #444; }
-    select, button { width: 100%; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
-    
-    button#generate { background: #007aff; color: #fff; border: none; font-weight: bold; cursor: pointer; }
-    button#toggle { background: #34c759; color: #fff; border: none; }
-    button#print { background: #8e8e93; color: #fff; border: none; }
-
-    /* テーブルデザイン（原本を意識） */
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #000; padding: 12px; font-size: 16px; }
-    th { background: #f9f9f9; }
-    .answer-text { color: red; font-weight: bold; display: none; }
-    .show-answer .answer-text { display: inline; }
-
-    /* 印刷設定 */
-    @media print {
-      .settings-panel { display: none; }
-      .preview-panel { background: none; padding: 0; overflow: visible; }
-      .test-paper { box-shadow: none; width: 100%; margin: 0; border: none; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>英単語テストPro (VBAロジック完全移植版)</title>
+    <style>
+        /* スタイル（以前の2ペインレイアウトを継承） */
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+        .settings-panel { width: 350px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; }
+        .preview-panel { flex: 1; padding: 40px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
+        .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #000; padding: 10px; text-align: left; }
+        .col-no { width: 30px; text-align: center; }
+        select, button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
+        button { cursor: pointer; font-weight: bold; background: #007bff; color: white; border: none; }
+        button:hover { background: #0056b3; }
+        .config-group { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
+    </style>
 </head>
 <body>
 
-<div class="main-container">
-  <div class="settings-panel no-print">
-    <h2>📝 テスト作成</h2>
-    <hr>
-    <div class="config-group">
-      <label>学年</label>
-      <select id="grade"></select>
-    </div>
-    <div class="config-group">
-      <label>出題モード</label>
-      <select id="mode">
-        <option value="en2ja">英語 → 日本語</option>
-        <option value="ja2en">日本語 → 英語</option>
-      </select>
-    </div>
-    <div class="config-group">
-      <label>範囲（開始〜終了）</label>
-      <select id="unitStart"></select>
-      <select id="partStart"></select>
-      <div style="text-align:center; margin: 5px 0;">⬇︎</div>
-      <select id="unitEnd"></select>
-      <select id="partEnd"></select>
-    </div>
+<div class="settings-panel">
+    <h2>🛠 テスト作成</h2>
     
-    <button id="generate">🔄 問題を生成</button>
-    <button id="toggle">👁 解答を表示：OFF</button>
-    <button id="print" onclick="window.print()">🖨 印刷 / PDF保存</button>
-    
-    <div id="status" style="font-size:12px; color: #666; margin-top: 10px;"></div>
-  </div>
+    <div class="config-group">
+        <label>開始範囲 (学年 + 単元)</label>
+        <select id="start-grade"></select>
+        <select id="start-unit"></select>
+    </div>
 
-  <div class="preview-panel">
-    <div id="paper" class="test-paper">
-      <h1>英単語定期テスト <span id="paper-grade" style="float:right; font-size:16px;"></span></h1>
-      <div style="margin-bottom: 20px; text-align: right;">
-        組：__________ 番：__________ 氏名：____________________
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:10%;">No.</th>
-            <th id="qHead" style="width:45%;">問題</th>
-            <th id="aHead" style="width:45%;">解答欄</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          </tbody>
-      </table>
+    <div class="config-group">
+        <label>終了範囲 (学年 + 単元)</label>
+        <select id="end-grade"></select>
+        <select id="end-unit"></select>
     </div>
-  </div>
+
+    <button onclick="generateTest()">🔄 問題を抽出して生成</button>
+    <button style="background:#28a745;" onclick="toggleAnswer()">👁 解答表示 切替</button>
+    <button style="background:#6c757d;" onclick="window.print()">🖨 印刷 / PDF保存</button>
+</div>
+
+<div class="preview-panel">
+    <div class="test-paper" id="paper">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <h1 style="margin:0;">英単語テスト</h1>
+            <span>名前: __________________________</span>
+        </div>
+        <p id="range-label" style="font-size:12px; color:#666;"></p>
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-no">No</th>
+                    <th>問題</th>
+                    <th>解答欄</th>
+                </tr>
+            </thead>
+            <tbody id="test-body"></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-  // ... (DATAの読み込みなどは元のHTMLと同じ) ...
-  
-  // 修正版render関数
-  function render() {
-    const mode = el("mode").value;
-    const tbody = el("rows");
-    tbody.innerHTML = "";
+    let allData = [];
+    let isShowAnswer = false;
 
-    // 解答表示クラスの切り替え
-    const paper = el("paper");
-    if(showAnswer) paper.classList.add("show-answer");
-    else paper.classList.remove("show-answer");
+    // 1. CSV読み込み (VBAの参照シートに対応)
+    async function init() {
+        try {
+            const res = await fetch('wordlist.csv');
+            const text = await res.text();
+            const rows = text.split('\n').slice(1);
+            
+            allData = rows.map(row => {
+                const c = row.split(',');
+                return { key: c[0], grade: c[1], unit: c[2], en: c[3], ja: c[4] };
+            }).filter(d => d.en);
 
-    current.forEach((it, idx) => {
-      const q = (mode === "en2ja") ? it.en : it.ja;
-      const a = (mode === "en2ja") ? it.ja : it.en;
-      
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td style="text-align:center;">${idx + 1}</td>
-        <td>${escapeHtml(q)}</td>
-        <td><span class="answer-text">${escapeHtml(a)}</span></td>
-      `;
-      tbody.appendChild(tr);
-    });
-    
-    el("paper-grade").textContent = el("grade").value;
-  }
-  // ... (その他のロジックも基本同じ) ...
+            // プルダウンのセットアップ (VBAの単元リスト/プルダウンデータに対応)
+            setupSelects();
+        } catch (e) {
+            alert("wordlist.csvを読み込めませんでした。");
+        }
+    }
+
+    function setupSelects() {
+        const grades = [...new Set(allData.map(d => d.grade))];
+        const units = [...new Set(allData.map(d => d.unit))];
+        
+        ['start-grade', 'end-grade'].forEach(id => {
+            const el = document.getElementById(id);
+            grades.forEach(g => el.add(new Option(g, g)));
+        });
+        ['start-unit', 'end-unit'].forEach(id => {
+            const el = document.getElementById(id);
+            units.forEach(u => el.add(new Option(u, u)));
+        });
+    }
+
+    // 2. 抽出ロジック (VBAのFindRowMin/Maxを再現)
+    function generateTest() {
+        const sKey = document.getElementById('start-grade').value + document.getElementById('start-unit').value;
+        const eKey = document.getElementById('end-grade').value + document.getElementById('end-unit').value;
+
+        // A列(key)を元に開始と終了のインデックスを特定
+        let startIndex = allData.findIndex(d => d.key === sKey);
+        let endIndex = allData.findLastIndex(d => d.key === eKey);
+
+        if (startIndex === -1 || endIndex === -1) {
+            alert("指定された範囲が見つかりません。");
+            return;
+        }
+
+        // 範囲を抽出 (rStart ～ rEnd に相当)
+        let filtered = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
+        
+        // ランダムに20個抽出
+        let selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 20);
+
+        render(selected, sKey, eKey);
+    }
+
+    function render(data, s, e) {
+        const tbody = document.getElementById('test-body');
+        tbody.innerHTML = '';
+        document.getElementById('range-label').textContent = `範囲: ${s} ～ ${e}`;
+
+        data.forEach((d, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="col-no">${i+1}</td>
+                <td>${d.ja}</td>
+                <td class="ans" data-ans="${d.en}">${isShowAnswer ? d.en : ''}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function toggleAnswer() {
+        isShowAnswer = !isShowAnswer;
+        document.querySelectorAll('.ans').forEach(td => {
+            td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '';
+        });
+    }
+
+    window.onload = init;
 </script>
+</body>
+</html>
