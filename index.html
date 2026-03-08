@@ -65,9 +65,9 @@
     let allData = [];
     let isShowAnswer = false;
 
-    // 1. CSV読み込み (VBAの参照シートに対応)
     async function init() {
         try {
+            // CSVを読み込む
             const res = await fetch('wordlist.csv');
             const text = await res.text();
             const rows = text.split('\n').slice(1);
@@ -77,45 +77,54 @@
                 return { key: c[0], grade: c[1], unit: c[2], en: c[3], ja: c[4] };
             }).filter(d => d.en);
 
-            // プルダウンのセットアップ (VBAの単元リスト/プルダウンデータに対応)
-            setupSelects();
+            // 最初に「学年」のプルダウンだけ作成
+            const grades = [...new Set(allData.map(d => d.grade))];
+            ['start-grade', 'end-grade'].forEach(id => {
+                const el = document.getElementById(id);
+                el.innerHTML = '';
+                grades.forEach(g => el.add(new Option(g, g)));
+                // 学年が変わったら単元リストを更新するイベントを追加
+                el.onchange = updateUnitSelects;
+            });
+
+            updateUnitSelects();
         } catch (e) {
-            alert("wordlist.csvを読み込めませんでした。");
+            alert("wordlist.csvが見つかりません。");
         }
     }
 
-    function setupSelects() {
-        const grades = [...new Set(allData.map(d => d.grade))];
-        const units = [...new Set(allData.map(d => d.unit))];
-        
-        ['start-grade', 'end-grade'].forEach(id => {
-            const el = document.getElementById(id);
-            grades.forEach(g => el.add(new Option(g, g)));
-        });
-        ['start-unit', 'end-unit'].forEach(id => {
-            const el = document.getElementById(id);
-            units.forEach(u => el.add(new Option(u, u)));
+    // 学年に合わせて単元プルダウンを更新（VBAの連動プルダウン再現）
+    function updateUnitSelects() {
+        ['start', 'end'].forEach(prefix => {
+            const grade = document.getElementById(`${prefix}-grade`).value;
+            const unitSel = document.getElementById(`${prefix}-unit`);
+            
+            // その学年に存在する単元だけを抽出
+            const units = [...new Set(allData.filter(d => d.grade === grade).map(d => d.unit))];
+            
+            unitSel.innerHTML = '';
+            units.forEach(u => unitSel.add(new Option(u, u)));
         });
     }
 
-    // 2. 抽出ロジック (VBAのFindRowMin/Maxを再現)
     function generateTest() {
-        const sKey = document.getElementById('start-grade').value + document.getElementById('start-unit').value;
-        const eKey = document.getElementById('end-grade').value + document.getElementById('end-unit').value;
+        const sG = document.getElementById('start-grade').value;
+        const sU = document.getElementById('start-unit').value;
+        const eG = document.getElementById('end-grade').value;
+        const eU = document.getElementById('end-unit').value;
 
-        // A列(key)を元に開始と終了のインデックスを特定
+        const sKey = sG + sU;
+        const eKey = eG + eU;
+
         let startIndex = allData.findIndex(d => d.key === sKey);
         let endIndex = allData.findLastIndex(d => d.key === eKey);
 
         if (startIndex === -1 || endIndex === -1) {
-            alert("指定された範囲が見つかりません。");
+            alert("範囲が見つかりません。");
             return;
         }
 
-        // 範囲を抽出 (rStart ～ rEnd に相当)
         let filtered = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
-        
-        // ランダムに20個抽出
         let selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 20);
 
         render(selected, sKey, eKey);
@@ -124,7 +133,7 @@
     function render(data, s, e) {
         const tbody = document.getElementById('test-body');
         tbody.innerHTML = '';
-        document.getElementById('range-label').textContent = `範囲: ${s} ～ ${e}`;
+        document.getElementById('range-label').textContent = `抽出範囲: ${s} ～ ${e} (計${data.length}問中からランダム表示)`;
 
         data.forEach((d, i) => {
             const tr = document.createElement('tr');
