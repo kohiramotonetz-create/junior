@@ -108,15 +108,17 @@
             const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
             
             allData = rows.map(row => {
-                const c = row.split(',');
-                return { 
-                    key: c[0],   // 学年ユニット単元 (連結キー)
-                    unitGroup: c[1], // 学年ユニット (プルダウン用)
-                    part: c[2],  // 単元 (プルダウン用)
+                // カンマで区切るが、"" で囲まれた中のカンマは無視する特殊な分割方法
+                const c = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '')) || [];
+                if (c.length < 5) return null; // 列が足りない行は無視
+                 return {
+                    key: c[0],   // 学年ユニット単元
+                    unitGroup: c[1], // 学年ユニット
+                    part: c[2],  // 単元
                     en: c[3],    // 英語
                     ja: c[4]     // 日本語
                 };
-            }).filter(d => d.en);
+            }).filter(d => d && d.en);
 
             setupSelects();
         } catch (e) {
