@@ -2,24 +2,28 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>英単語テストPro (Excel完全再現版)</title>
+    <title>英単語テストPro - 完全版</title>
     <style>
-        body { font-family: system-ui, sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+        /* レイアウト設定 */
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
         .settings-panel { width: 380px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
         .preview-panel { flex: 1; padding: 20px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
-        .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-sizing: border-box; position: relative; }
+        .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-sizing: border-box; }
         
+        /* 設定項目のスタイル */
         h2 { border-left: 5px solid #007bff; padding-left: 10px; font-size: 1.2em; margin-bottom: 20px; }
-        .config-group { margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 8px; }
+        .config-group { margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
         label { display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px; }
-        select, button { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+        select, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 16px; }
         
-        .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; font-size: 18px; }
+        .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; font-size: 18px; transition: 0.2s; }
+        .btn-main:hover { background: #0056b3; }
         .btn-sub { background: #28a745; color: white; border: none; cursor: pointer; }
         .btn-print { background: #6c757d; color: white; border: none; cursor: pointer; }
 
+        /* テスト用紙のスタイル */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        th, td { border: 1px solid #000; padding: 10px; text-align: left; height: 30px; }
         .col-no { width: 40px; text-align: center; }
         .header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 20px; }
         
@@ -36,10 +40,13 @@
     <h2>📝 テスト作成設定</h2>
     
     <div class="config-group">
-        <label>学校名 (〇〇中)</label>
-        <select id="school"></select>
-        <label>学年</label>
-        <select id="grade"></select>
+        <label>学校名 (表示用)</label>
+        <select id="school">
+            <option value="木太中">木太中</option>
+            <option value="玉藻中">玉藻中</option>
+            <option value="桜町中">桜町中</option>
+            <option value="附属中">附属中</option>
+        </select>
         <label>出題モード</label>
         <select id="mode">
             <option value="en-ja">英語 → 日本語訳</option>
@@ -49,15 +56,15 @@
 
     <div class="config-group">
         <label>▼ 開始範囲</label>
-        <select id="start-unit"></select>
+        <select id="start-unit" onchange="updateStartParts()"></select>
         <select id="start-part"></select>
     </div>
 
-    <div style="text-align: center; margin: -5px 0 10px;">⬇</div>
+    <div style="text-align: center; margin: -5px 0 10px; font-size: 20px;">⬇</div>
 
     <div class="config-group">
         <label>▼ 終了範囲</label>
-        <select id="end-unit"></select>
+        <select id="end-unit" onchange="updateEndParts()"></select>
         <select id="end-part"></select>
     </div>
 
@@ -71,7 +78,7 @@
         <div class="header-area">
             <div style="font-size: 14px;">名前 ____________________</div>
             <h1 style="margin: 0; font-size: 24px;">英単語テスト</h1>
-            <div id="info-tag" style="font-size: 12px;"></div>
+            <div id="info-tag" style="font-size: 12px; font-weight: bold;"></div>
         </div>
         <p id="range-display" style="font-size: 11px; margin: 5px 0; color: #444;"></p>
         <table>
@@ -82,7 +89,8 @@
                     <th id="th-a">日本語訳</th>
                 </tr>
             </thead>
-            <tbody id="test-body"></tbody>
+            <tbody id="test-body">
+                </tbody>
         </table>
     </div>
 </div>
@@ -91,68 +99,68 @@
     let allData = [];
     let isShowAnswer = false;
 
+    // 1. CSV読み込み (画像 image_ac4e7e.png の5列構成に対応)
     async function init() {
         try {
             const res = await fetch('wordlist.csv');
             const text = await res.text();
-            const rows = text.split('\n').slice(1);
+            // 改行で分割し、空行を除去。1行目は見出しとして飛ばす。
+            const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
             
             allData = rows.map(row => {
                 const c = row.split(',');
-                return { key: c[0], school: c[1], grade: c[2], unit: c[3], part: c[4], en: c[5], ja: c[6] };
+                return { 
+                    key: c[0],   // 学年ユニット単元 (連結キー)
+                    unitGroup: c[1], // 学年ユニット (プルダウン用)
+                    part: c[2],  // 単元 (プルダウン用)
+                    en: c[3],    // 英語
+                    ja: c[4]     // 日本語
+                };
             }).filter(d => d.en);
 
-            setupMasterSelects();
+            setupSelects();
         } catch (e) {
-            alert("wordlist.csvを読み込めませんでした。");
+            alert("wordlist.csvを読み込めませんでした。index.htmlと同じフォルダにありますか？");
         }
     }
 
-    function setupMasterSelects() {
-        const schools = [...new Set(allData.map(d => d.school))];
-        const schoolSel = document.getElementById('school');
-        schools.forEach(s => schoolSel.add(new Option(s, s)));
-        schoolSel.onchange = updateGrades;
-        updateGrades();
-    }
+    // 2. プルダウンのセットアップ
+    function setupSelects() {
+        const units = [...new Set(allData.map(d => d.unitGroup))];
+        const sUnit = document.getElementById('start-unit');
+        const eUnit = document.getElementById('end-unit');
 
-    function updateGrades() {
-        const school = document.getElementById('school').value;
-        const grades = [...new Set(allData.filter(d => d.school === school).map(d => d.grade))];
-        const gradeSel = document.getElementById('grade');
-        gradeSel.innerHTML = '';
-        grades.forEach(g => gradeSel.add(new Option(g, g)));
-        gradeSel.onchange = updateUnitParts;
-        updateUnitParts();
-    }
-
-    function updateUnitParts() {
-        const school = document.getElementById('school').value;
-        const grade = document.getElementById('grade').value;
-        const filtered = allData.filter(d => d.school === school && d.grade === grade);
-        
-        const units = [...new Set(filtered.map(d => d.unit))];
-        const parts = [...new Set(filtered.map(d => d.part))];
-
-        ['start', 'end'].forEach(p => {
-            const uSel = document.getElementById(`${p}-unit`);
-            const pSel = document.getElementById(`${p}-part`);
-            uSel.innerHTML = ''; pSel.innerHTML = '';
-            units.forEach(u => uSel.add(new Option(u, u)));
-            parts.forEach(pt => pSel.add(new Option(pt, pt)));
+        units.forEach(u => {
+            sUnit.add(new Option(u, u));
+            eUnit.add(new Option(u, u));
         });
+
+        updateStartParts();
+        updateEndParts();
     }
 
+    function updateStartParts() { updateParts('start'); }
+    function updateEndParts() { updateParts('end'); }
+
+    function updateParts(prefix) {
+        const unitVal = document.getElementById(`${prefix}-unit`).value;
+        const partSel = document.getElementById(`${prefix}-part`);
+        const parts = [...new Set(allData.filter(d => d.unitGroup === unitVal).map(d => d.part))];
+        
+        partSel.innerHTML = '';
+        parts.forEach(p => partSel.add(new Option(p, p)));
+    }
+
+    // 3. 問題生成ロジック (VBAの範囲抽出を再現)
     function generateTest() {
         const school = document.getElementById('school').value;
-        const grade = document.getElementById('grade').value;
         const sU = document.getElementById('start-unit').value;
         const sP = document.getElementById('start-part').value;
         const eU = document.getElementById('end-unit').value;
         const eP = document.getElementById('end-part').value;
         const mode = document.getElementById('mode').value;
 
-        // Excelの連結キーロジック (A列と比較)
+        // VBAと同じ「連結キー」での検索
         const sKey = sU + sP;
         const eKey = eU + eP;
 
@@ -160,31 +168,39 @@
         let endIndex = allData.findLastIndex(d => d.key === eKey);
 
         if (startIndex === -1 || endIndex === -1) {
-            alert("指定範囲のデータが見つかりません。");
+            alert("指定された範囲のキーが見つかりませんでした。\n開始: " + sKey + "\n終了: " + eKey);
             return;
         }
 
-        let range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1)
-                           .filter(d => d.school === school && d.grade === grade);
+        // 範囲を切り出し
+        let first = Math.min(startIndex, endIndex);
+        let last = Math.max(startIndex, endIndex);
+        let rangeData = allData.slice(first, last + 1);
         
-        let selected = range.sort(() => 0.5 - Math.random()).slice(0, 20);
+        // ランダムに20個選ぶ
+        let selected = rangeData.sort(() => 0.5 - Math.random()).slice(0, 20);
 
-        render(selected, mode, school, grade, sKey, eKey);
+        render(selected, mode, school, sKey, eKey);
     }
 
-    function render(data, mode, school, grade, s, e) {
+    function render(data, mode, school, s, e) {
         const tbody = document.getElementById('test-body');
         tbody.innerHTML = '';
+        
         document.getElementById('th-q').textContent = mode === 'en-ja' ? '英単語' : '日本語訳';
         document.getElementById('th-a').textContent = mode === 'en-ja' ? '日本語訳' : '英単語';
-        document.getElementById('info-tag').textContent = `${school}_${grade}`;
-        document.getElementById('range-display').textContent = `範囲: ${s} ～ ${e}`;
+        document.getElementById('info-tag').textContent = school;
+        document.getElementById('range-display').textContent = `抽出範囲: ${s} ～ ${e} (全${data.length}問)`;
 
         data.forEach((d, i) => {
             const tr = document.createElement('tr');
             const q = mode === 'en-ja' ? d.en : d.ja;
             const a = mode === 'en-ja' ? d.ja : d.en;
-            tr.innerHTML = `<td class="col-no">${i+1}</td><td>${q}</td><td class="ans" data-ans="${a}">${isShowAnswer ? a : ''}</td>`;
+            tr.innerHTML = `
+                <td class="col-no">${i+1}</td>
+                <td>${q}</td>
+                <td class="ans" data-ans="${a}">${isShowAnswer ? a : ''}</td>
+            `;
             tbody.appendChild(tr);
         });
     }
@@ -192,9 +208,10 @@
     function toggleAnswer() {
         isShowAnswer = !isShowAnswer;
         document.querySelector('.btn-sub').textContent = `👁 解答表示：${isShowAnswer ? 'ON' : 'OFF'}`;
-        document.querySelectorAll('.ans').forEach(td => td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '');
+        document.querySelectorAll('.ans').forEach(td => {
+            td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '';
+        });
     }
-    
 
     window.onload = init;
 </script>
