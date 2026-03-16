@@ -194,6 +194,7 @@
         document.querySelector('.btn-sub').textContent = `👁 解答表示：${isShowAnswer ? 'ON' : 'OFF'}`;
         document.querySelectorAll('.ans').forEach(td => td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '');
     }
+    
 
     window.onload = init;
 </script>
