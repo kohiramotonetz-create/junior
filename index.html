@@ -2,28 +2,25 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英単語テストPro - 完全版</title>
     <style>
-        /* レイアウト設定 */
-        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
         .settings-panel { width: 380px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
         .preview-panel { flex: 1; padding: 20px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
         .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-sizing: border-box; }
         
-        /* 設定項目のスタイル */
         h2 { border-left: 5px solid #007bff; padding-left: 10px; font-size: 1.2em; margin-bottom: 20px; }
         .config-group { margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
         label { display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px; }
         select, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 16px; }
         
-        .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; font-size: 18px; transition: 0.2s; }
-        .btn-main:hover { background: #0056b3; }
+        .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; font-size: 18px; }
         .btn-sub { background: #28a745; color: white; border: none; cursor: pointer; }
         .btn-print { background: #6c757d; color: white; border: none; cursor: pointer; }
 
-        /* テスト用紙のスタイル */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #000; padding: 10px; text-align: left; height: 30px; }
+        th, td { border: 1px solid #000; padding: 10px; text-align: left; height: 35px; }
         .col-no { width: 40px; text-align: center; }
         .header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 20px; }
         
@@ -38,7 +35,6 @@
 
 <div class="settings-panel">
     <h2>📝 テスト作成設定</h2>
-    
     <div class="config-group">
         <label>学校名 (表示用)</label>
         <select id="school">
@@ -78,9 +74,9 @@
         <div class="header-area">
             <div style="font-size: 14px;">名前 ____________________</div>
             <h1 style="margin: 0; font-size: 24px;">英単語テスト</h1>
-            <div id="info-tag" style="font-size: 12px; font-weight: bold;"></div>
+            <div id="info-tag" style="font-size: 14px; font-weight: bold;"></div>
         </div>
-        <p id="range-display" style="font-size: 11px; margin: 5px 0; color: #444;"></p>
+        <p id="range-display" style="font-size: 12px; margin: 5px 0; color: #444;"></p>
         <table>
             <thead>
                 <tr>
@@ -89,8 +85,7 @@
                     <th id="th-a">日本語訳</th>
                 </tr>
             </thead>
-            <tbody id="test-body">
-                </tbody>
+            <tbody id="test-body"></tbody>
         </table>
     </div>
 </div>
@@ -99,110 +94,89 @@
     let allData = [];
     let isShowAnswer = false;
 
-    // 1. CSV読み込み (画像 image_ac4e7e.png の5列構成に対応)
-    async function init() {
-        try {
-            const res = await fetch('wordlist.csv');
-            const text = await res.text();
-            // 改行で分割し、空行を除去。1行目は見出しとして飛ばす。
-            const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
-            
-            allData = rows.map(row => {
-                // カンマで区切るが、"" で囲まれた中のカンマは無視する特殊な分割方法
-                const c = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '')) || [];
-                if (c.length < 5) return null; // 列が足りない行は無視
-                 return {
-                    key: c[0],   // 学年ユニット単元
-                    unitGroup: c[1], // 学年ユニット
-                    part: c[2],  // 単元
-                    en: c[3],    // 英語
-                    ja: c[4]     // 日本語
-                };
-            }).filter(d => d && d.en);
-
-            setupSelects();
-        } catch (e) {
-            alert("wordlist.csvを読み込めませんでした。index.htmlと同じフォルダにありますか？");
+    // CSVの複雑な解析（カンマ入りデータ対応）
+    function parseCSVRow(row) {
+        const result = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < row.length; i++) {
+            const char = row[i];
+            if (char === '"' && row[i+1] === '"') { current += '"'; i++; }
+            else if (char === '"') { inQuotes = !inQuotes; }
+            else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ""; }
+            else { current += char; }
         }
+        result.push(current.trim());
+        return result;
     }
 
-    // 2. プルダウンのセットアップ
-    function setupSelects() {
-        const units = [...new Set(allData.map(d => d.unitGroup))];
-        const sUnit = document.getElementById('start-unit');
-        const eUnit = document.getElementById('end-unit');
+    async function init() {
+        try {
+            // キャッシュ対策としてURLに日付を付与
+            const res = await fetch('wordlist.csv?v=' + new Date().getTime());
+            const text = await res.text();
+            const rows = text.split(/\r?\n/).filter(line => line.trim() !== "");
+            
+            allData = rows.slice(1).map(row => {
+                const c = parseCSVRow(row);
+                if (c.length < 5) return null;
+                return { key: c[0], unitGroup: c[1], part: c[2], en: c[3], ja: c[4] };
+            }).filter(d => d && d.en);
 
-        units.forEach(u => {
-            sUnit.add(new Option(u, u));
-            eUnit.add(new Option(u, u));
-        });
+            if (allData.length === 0) throw new Error("データが空です");
 
-        updateStartParts();
-        updateEndParts();
+            const units = [...new Set(allData.map(d => d.unitGroup))];
+            ['start-unit', 'end-unit'].forEach(id => {
+                const el = document.getElementById(id);
+                units.forEach(u => el.add(new Option(u, u)));
+            });
+
+            updateStartParts();
+            updateEndParts();
+        } catch (e) {
+            console.error(e);
+            alert("wordlist.csvの読み込みに失敗しました。GitHubに正しくアップロードされているか確認してください。");
+        }
     }
 
     function updateStartParts() { updateParts('start'); }
     function updateEndParts() { updateParts('end'); }
-
     function updateParts(prefix) {
         const unitVal = document.getElementById(`${prefix}-unit`).value;
         const partSel = document.getElementById(`${prefix}-part`);
         const parts = [...new Set(allData.filter(d => d.unitGroup === unitVal).map(d => d.part))];
-        
         partSel.innerHTML = '';
         parts.forEach(p => partSel.add(new Option(p, p)));
     }
 
-    // 3. 問題生成ロジック (VBAの範囲抽出を再現)
     function generateTest() {
-        const school = document.getElementById('school').value;
-        const sU = document.getElementById('start-unit').value;
-        const sP = document.getElementById('start-part').value;
-        const eU = document.getElementById('end-unit').value;
-        const eP = document.getElementById('end-part').value;
+        const sKey = document.getElementById('start-unit').value + document.getElementById('start-part').value;
+        const eKey = document.getElementById('end-unit').value + document.getElementById('end-part').value;
         const mode = document.getElementById('mode').value;
 
-        // VBAと同じ「連結キー」での検索
-        const sKey = sU + sP;
-        const eKey = eU + eP;
-
-        let startIndex = allData.findIndex(d => d.key === sKey);
-        let endIndex = allData.findLastIndex(d => d.key === eKey);
+        const startIndex = allData.findIndex(d => d.key === sKey);
+        const endIndex = allData.findLastIndex(d => d.key === eKey);
 
         if (startIndex === -1 || endIndex === -1) {
-            alert("指定された範囲のキーが見つかりませんでした。\n開始: " + sKey + "\n終了: " + eKey);
+            alert("範囲が見つかりません: " + sKey + " ～ " + eKey);
             return;
         }
 
-        // 範囲を切り出し
-        let first = Math.min(startIndex, endIndex);
-        let last = Math.max(startIndex, endIndex);
-        let rangeData = allData.slice(first, last + 1);
-        
-        // ランダムに20個選ぶ
-        let selected = rangeData.sort(() => 0.5 - Math.random()).slice(0, 20);
+        const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
+        const selected = range.sort(() => 0.5 - Math.random()).slice(0, 20);
 
-        render(selected, mode, school, sKey, eKey);
-    }
-
-    function render(data, mode, school, s, e) {
         const tbody = document.getElementById('test-body');
         tbody.innerHTML = '';
-        
         document.getElementById('th-q').textContent = mode === 'en-ja' ? '英単語' : '日本語訳';
         document.getElementById('th-a').textContent = mode === 'en-ja' ? '日本語訳' : '英単語';
-        document.getElementById('info-tag').textContent = school;
-        document.getElementById('range-display').textContent = `抽出範囲: ${s} ～ ${e} (全${data.length}問)`;
+        document.getElementById('info-tag').textContent = document.getElementById('school').value;
+        document.getElementById('range-display').textContent = `範囲: ${sKey} ～ ${eKey} (全${range.length}問中から20問抽出)`;
 
-        data.forEach((d, i) => {
+        selected.forEach((d, i) => {
             const tr = document.createElement('tr');
             const q = mode === 'en-ja' ? d.en : d.ja;
             const a = mode === 'en-ja' ? d.ja : d.en;
-            tr.innerHTML = `
-                <td class="col-no">${i+1}</td>
-                <td>${q}</td>
-                <td class="ans" data-ans="${a}">${isShowAnswer ? a : ''}</td>
-            `;
+            tr.innerHTML = `<td class="col-no">${i+1}</td><td>${q}</td><td class="ans" data-ans="${a}">${isShowAnswer ? a : ''}</td>`;
             tbody.appendChild(tr);
         });
     }
@@ -210,9 +184,7 @@
     function toggleAnswer() {
         isShowAnswer = !isShowAnswer;
         document.querySelector('.btn-sub').textContent = `👁 解答表示：${isShowAnswer ? 'ON' : 'OFF'}`;
-        document.querySelectorAll('.ans').forEach(td => {
-            td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '';
-        });
+        document.querySelectorAll('.ans').forEach(td => td.textContent = isShowAnswer ? td.getAttribute('data-ans') : '');
     }
 
     window.onload = init;
