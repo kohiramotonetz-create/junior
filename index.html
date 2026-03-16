@@ -5,31 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英単語テストPro - 完全版</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
-        .settings-panel { width: 380px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
-        .preview-panel { flex: 1; padding: 20px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
-        .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 40px; box-sizing: border-box; }
-        
-        h2 { border-left: 5px solid #007bff; padding-left: 10px; font-size: 1.2em; margin-bottom: 20px; }
-        .config-group { margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
-        label { display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px; }
-        select, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 16px; }
-        
-        .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; font-size: 18px; }
-        .btn-sub { background: #28a745; color: white; border: none; cursor: pointer; }
-        .btn-print { background: #6c757d; color: white; border: none; cursor: pointer; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #000; padding: 10px; text-align: left; height: 35px; }
-        .col-no { width: 40px; text-align: center; }
-        .header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 20px; }
-        
-        @media print {
-            .settings-panel { display: none; }
-            .preview-panel { background: none; padding: 0; }
-            .test-paper { box-shadow: none; margin: 0; }
-        }
-    </style>
+    /* 全体レイアウト */
+    body { font-family: sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+    .settings-panel { width: 380px; background: #fff; border-right: 1px solid #ccc; padding: 20px; overflow-y: auto; }
+    .preview-panel { flex: 1; padding: 10px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
+    
+    /* テスト用紙：A4比率を厳守し、iPadでも崩れないように設定 */
+    .test-paper { 
+        width: 210mm; 
+        height: 297mm; 
+        background: #fff; 
+        padding: 15mm; 
+        box-sizing: border-box; 
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* ヘッダー */
+    .header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
+    .header-area h1 { margin: 0; font-size: 22px; }
+    
+    /* テーブル：20問が確実に収まる高さに調整 */
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; flex-grow: 1; }
+    th, td { border: 1px solid #000; padding: 4px 8px; text-align: left; overflow: hidden; }
+    
+    /* 行の高さを固定（1問あたり約11mmに設定） */
+    tr { height: 11.5mm; }
+    
+    .col-no { width: 35px; text-align: center; font-size: 14px; }
+    
+    /* 文字サイズ：長い日本語でもはみ出さないように少し小さめに設定 */
+    td { font-size: 14px; line-height: 1.2; word-break: break-all; }
+    
+    /* 設定ボタンなど */
+    .config-group { margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; }
+    select, button { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+    .btn-main { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
+    
+    @media print {
+        body { background: none; }
+        .settings-panel { display: none; }
+        .preview-panel { padding: 0; background: none; }
+        .test-paper { box-shadow: none; margin: 0; border: none; }
+    }
+</style>
 </head>
 <body>
 
